@@ -10,6 +10,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
   selector: 'app-drive',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  styleUrls: ['./drive.component.scss'],
   template: `
     <div class="drive-container">
       <!-- Header -->
@@ -50,7 +51,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
         </div>
 
         <!-- File List -->
-        <div *ngIf="!loading() && files().length > 0" class="file-list"
+        <div *ngIf="!loading()" class="file-list"
              (dragover)="onDragOver($event)"
              (dragleave)="onDragLeave($event)"
              (drop)="onDrop($event)"
@@ -71,108 +72,112 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
             </div>
           </div>
           <input type="file" multiple (change)="onFileSelect($event)" #fileInput style="display: none;">
-          <table>
-            <thead>
-              <tr>
-                <th>
-                  <div class="name-header-container">
-                    <span>Name</span>
-                    <div class="search-filter-inline">
-                      <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        [(ngModel)]="searchTerm"
-                        class="search-input-inline"
-                        (input)="onSearchChange($event)">
-                      <span class="search-icon-inline">🔍</span>
-                    </div>
-                  </div>
-                </th>
-                <th>Type</th>
-                <th>Size</th>
-                <th class="sortable-header">
-                  Modified Date
-                  <button 
-                    (click)="toggleDateSort()"
-                    class="sort-toggle" 
-                    [title]="getSortTooltip()">
-                    {{ getSortArrow() }}
-                  </button>
-                </th>
-                <th class="actions-column">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let file of paginatedFiles()">
-                <td>
-                  <span class="file-icon">{{ getFileIcon(file) }}</span><span
-                    (click)="isFolder(file) ? navigateToFolder(file.name) : null"
-                    [class.clickable]="isFolder(file)">
-                    {{ getDisplayName(file.name) }}</span>
-                </td>
-                <td>{{ isFolder(file) ? 'Folder' : 'File' }}</td>
-                <td>{{ file.size ? formatFileSize(file.size) : '-' }}</td>
-                <td>{{ file.lastModified ? formatDate(file.lastModified) : '-' }}</td>
-                <td class="actions-column">
-                  <div class="actions-container">
-                    <button
-                      *ngIf="!isFolder(file)"
-                      (click)="downloadFile(file)"
-                      class="btn-download">
-                      Download
-                    </button>
-                    <button
-                      (click)="deleteItem(file)"
-                      class="btn-delete btn-delete-right">
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
           
-          <!-- Pagination Controls -->
-          <div *ngIf="totalPages() > 1" class="pagination-container">
-            <div class="pagination-info">
-              Page {{ currentPage() }} of {{ totalPages() }} ({{ filteredFiles().length }} items)
-            </div>
-            <div class="pagination-controls">
-              <button 
-                (click)="goToPage(1)" 
-                [disabled]="currentPage() === 1"
-                class="btn-pagination">
-                First
-              </button>
-              <button 
-                (click)="goToPage(currentPage() - 1)" 
-                [disabled]="currentPage() === 1"
-                class="btn-pagination">
-                ← Previous
-              </button>
-              
-              <span class="page-numbers">
+          <!-- Table section - only show when files exist -->
+          <div *ngIf="files().length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>
+                    <div class="name-header-container">
+                      <span>Name</span>
+                      <div class="search-filter-inline">
+                        <input 
+                          type="text" 
+                          placeholder="Search..." 
+                          [(ngModel)]="searchTerm"
+                          class="search-input-inline"
+                          (input)="onSearchChange($event)">
+                        <span class="search-icon-inline">🔍</span>
+                      </div>
+                    </div>
+                  </th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th class="sortable-header">
+                    Modified Date
+                    <button 
+                      (click)="toggleDateSort()"
+                      class="sort-toggle" 
+                      [title]="getSortTooltip()">
+                      {{ getSortArrow() }}
+                    </button>
+                  </th>
+                  <th class="actions-column">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let file of paginatedFiles()">
+                  <td>
+                    <span class="file-icon">{{ getFileIcon(file) }}</span><span
+                      (click)="isFolder(file) ? navigateToFolder(file.name) : null"
+                      [class.clickable]="isFolder(file)">
+                      {{ getDisplayName(file.name) }}</span>
+                  </td>
+                  <td>{{ isFolder(file) ? 'Folder' : 'File' }}</td>
+                  <td>{{ file.size ? formatFileSize(file.size) : '-' }}</td>
+                  <td>{{ file.lastModified ? formatDate(file.lastModified) : '-' }}</td>
+                  <td class="actions-column">
+                    <div class="actions-container">
+                      <button
+                        *ngIf="!isFolder(file)"
+                        (click)="downloadFile(file)"
+                        class="btn-download">
+                        Download
+                      </button>
+                      <button
+                        (click)="deleteItem(file)"
+                        class="btn-delete btn-delete-right">
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <!-- Pagination Controls -->
+            <div *ngIf="totalPages() > 1" class="pagination-container">
+              <div class="pagination-info">
+                Page {{ currentPage() }} of {{ totalPages() }} ({{ filteredFiles().length }} items)
+              </div>
+              <div class="pagination-controls">
                 <button 
-                  *ngFor="let page of getPageNumbers()" 
-                  (click)="goToPage(page)"
-                  [class.active]="page === currentPage()"
-                  class="btn-page-number">
-                  {{ page }}
+                  (click)="goToPage(1)" 
+                  [disabled]="currentPage() === 1"
+                  class="btn-pagination">
+                  First
                 </button>
-              </span>
-              
-              <button 
-                (click)="goToPage(currentPage() + 1)" 
-                [disabled]="currentPage() === totalPages()"
-                class="btn-pagination">
-                Next →
-              </button>
-              <button 
-                (click)="goToPage(totalPages())" 
-                [disabled]="currentPage() === totalPages()"
-                class="btn-pagination">
-                Last
-              </button>
+                <button 
+                  (click)="goToPage(currentPage() - 1)" 
+                  [disabled]="currentPage() === 1"
+                  class="btn-pagination">
+                  ← Previous
+                </button>
+                
+                <span class="page-numbers">
+                  <button 
+                    *ngFor="let page of getPageNumbers()" 
+                    (click)="goToPage(page)"
+                    [class.active]="page === currentPage()"
+                    class="btn-page-number">
+                    {{ page }}
+                  </button>
+                </span>
+                
+                <button 
+                  (click)="goToPage(currentPage() + 1)" 
+                  [disabled]="currentPage() === totalPages()"
+                  class="btn-pagination">
+                  Next →
+                </button>
+                <button 
+                  (click)="goToPage(totalPages())" 
+                  [disabled]="currentPage() === totalPages()"
+                  class="btn-pagination">
+                  Last
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -305,786 +310,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
         </div>
       </div>
     </div>
-  `,
-  styles: [`
-    .drive-container {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-    }
-
-    .drive-header {
-      background-color: var(--bg-secondary);
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .header-logo {
-      height: 2.5rem;
-      width: auto;
-    }
-
-    .drive-header h1 {
-      margin: 0;
-      color: var(--text-primary);
-      font-size: 1.5rem;
-    }
-
-    .drive-header h1 .storage-value,
-    .drive-header h1 .bucket-name {
-      font-weight: 300;
-      opacity: 0.8;
-      text-decoration: underline;
-      color: #007bff;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      position: relative;
-    }
-
-    .user-info span {
-      color: var(--text-primary);
-      font-size: 14px;
-    }
-
-    .user-menu {
-      position: relative;
-      display: inline-block;
-    }
-
-    .btn-settings {
-      background: none;
-      border: none;
-      color: var(--text-primary);
-      cursor: pointer;
-      font-size: 24px;
-      padding: 8px;
-      border-radius: 4px;
-      transition: background-color 0.2s;
-    }
-
-    .btn-settings:hover {
-      background-color: var(--bg-tertiary);
-    }
-
-    .user-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 1000;
-      min-width: 150px;
-      overflow: hidden;
-    }
-
-    .dropdown-item {
-      width: 100%;
-      padding: 12px 16px;
-      border: none;
-      background: none;
-      color: var(--text-primary);
-      cursor: pointer;
-      text-align: left;
-      font-size: 14px;
-      transition: background-color 0.2s;
-    }
-
-    .dropdown-item:hover {
-      background-color: var(--bg-secondary);
-    }
-
-    .update-profile-modal {
-      width: 90%;
-      max-width: 500px;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: var(--text-primary);
-      font-weight: 500;
-      font-size: 14px;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-
-    .help-text {
-      display: block;
-      margin-top: 0.25rem;
-      color: var(--text-secondary);
-      font-size: 12px;
-    }
-
-    .btn-confirm-update {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-confirm-update:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
-
-    .btn-confirm-update:disabled {
-      background-color: #6c757d;
-      cursor: not-allowed;
-    }
-
-    .drive-content {
-      flex: 1;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      width: 100%;
-      box-sizing: border-box;
-      background-color: var(--bg-primary);
-    }
-
-    .storage-info, .current-path {
-      margin-bottom: 20px;
-      padding: 15px;
-      border: 1px solid var(--border-light);
-      border-radius: 5px;
-      background-color: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-
-    .file-list-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .file-list-header .header-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .file-list-header h3 {
-      margin: 0;
-    }
-
-    .upload-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .btn-upload-icon {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .btn-upload-icon:hover {
-      background-color: #0056b3;
-    }
-
-    .btn-create-folder {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .btn-create-folder:hover {
-      background-color: #1e7e34;
-    }
-
-    .upload-status {
-      font-size: 14px;
-      color: #007bff;
-      font-weight: bold;
-    }
-
-    .file-list table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      background-color: var(--bg-primary);
-    }
-
-    .file-list th, .file-list td {
-      padding: 10px;
-      border: 1px solid var(--border-light);
-      text-align: left;
-      color: var(--text-primary);
-    }
-
-    .file-list .actions-column {
-      width: 200px;
-      min-width: 200px;
-      max-width: 200px;
-    }
-
-    .file-list th {
-      background-color: var(--table-header-bg);
-      font-weight: bold;
-    }
-
-    .clickable {
-      cursor: pointer;
-      color: #007bff;
-    }
-
-    .clickable:hover {
-      text-decoration: underline;
-    }
-
-    .file-icon {
-      margin-right: 0.5rem;
-    }
-
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .btn-upload, .btn-back {
-      background-color: #007bff;
-      color: white;
-    }
-
-    .btn-download {
-      background-color: #28a745;
-      color: white;
-    }
-
-    .btn-delete {
-      background-color: #dc3545;
-      color: white;
-    }
-
-    .actions-container {
-      display: flex;
-      align-items: center;
-      position: relative;
-      min-width: 180px;
-      height: 32px;
-    }
-
-    .btn-download {
-      position: absolute;
-      left: 0;
-    }
-
-    .btn-delete-right {
-      position: absolute;
-      right: 0;
-    }
-
-    button:disabled {
-      background-color: #6c757d;
-      cursor: not-allowed;
-    }
-
-    .btn-home {
-      background: none;
-      border: none;
-      color: #007bff;
-      cursor: pointer;
-      font-size: 14px;
-      padding: 2px 4px;
-      border-radius: 3px;
-      transition: background-color 0.2s;
-      margin: 0 2px;
-      vertical-align: baseline;
-    }
-
-    .btn-home:hover {
-      background-color: var(--bg-tertiary);
-    }
-
-    .path-display {
-      display: inline;
-      white-space: nowrap;
-    }
-
-    .header-title h3 {
-      display: inline-block;
-      margin: 0;
-      line-height: 1.2;
-    }
-
-    .loading, .error {
-      padding: 15px;
-      margin: 10px 0;
-      border-radius: 4px;
-    }
-
-    .loading {
-      background-color: #d1ecf1;
-      color: #0c5460;
-    }
-
-    [data-theme="dark"] .loading {
-      background-color: #1a4d5c;
-      color: #7dd3fc;
-    }
-
-    .error {
-      background-color: #f8d7da;
-      color: #721c24;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: relative;
-    }
-
-    [data-theme="dark"] .error {
-      background-color: #5c1a1a;
-      color: #f8a7a7;
-    }
-
-    .error-content {
-      flex: 1;
-      margin-right: 10px;
-    }
-
-    .btn-dismiss-error {
-      background: none;
-      border: none;
-      color: #721c24;
-      cursor: pointer;
-      font-size: 18px;
-      padding: 0;
-      margin: 0;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: background-color 0.2s;
-    }
-
-    .btn-dismiss-error:hover {
-      background-color: rgba(0, 0, 0, 0.1);
-    }
-
-    [data-theme="dark"] .btn-dismiss-error {
-      color: #f8a7a7;
-    }
-
-    [data-theme="dark"] .btn-dismiss-error:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-secondary);
-      border: 2px dashed var(--border-color);
-      border-radius: 8px;
-      margin: 20px 0;
-      transition: all 0.3s ease;
-      background-color: var(--bg-primary);
-    }
-
-    .empty-state.drag-over {
-      border-color: #007bff;
-      background-color: #e3f2fd;
-      color: #007bff;
-    }
-
-    [data-theme="dark"] .empty-state.drag-over {
-      background-color: #1a237e;
-      color: #90caf9;
-    }
-
-    .file-list.drag-over {
-      border: 2px dashed #007bff;
-      background-color: #e3f2fd;
-    }
-
-    [data-theme="dark"] .file-list.drag-over {
-      background-color: #1a237e;
-    }
-
-    .btn-upload-large {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-      margin: 20px 0 10px 0;
-    }
-
-    .btn-upload-large:hover {
-      background-color: #0056b3;
-    }
-
-    .drag-hint {
-      font-size: 14px;
-      color: #999;
-      margin: 10px 0 0 0;
-    }
-
-    .empty-content {
-      pointer-events: none;
-    }
-
-    .empty-content button {
-      pointer-events: auto;
-    }
-
-    .empty-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      margin: 1rem 0;
-    }
-
-    .btn-create-folder-large {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-      margin: 20px 0 10px 0;
-      transition: background-color 0.2s;
-    }
-
-    .btn-create-folder-large:hover {
-      background-color: #218838;
-    }
-
-    .drive-footer {
-      background-color: var(--bg-secondary);
-      border-top: 1px solid var(--border-color);
-      text-align: center;
-      padding: 15px;
-      margin-top: auto;
-    }
-
-    .drive-footer p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: 12px;
-      opacity: 0.8;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .modal-content {
-      background-color: var(--bg-primary);
-      border-radius: 8px;
-      padding: 24px;
-      max-width: 400px;
-      width: 90%;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border-color);
-    }
-
-    .modal-content h3 {
-      margin: 0 0 16px 0;
-      color: var(--text-primary);
-      font-size: 18px;
-    }
-
-    .modal-content p {
-      margin: 0 0 12px 0;
-      color: var(--text-primary);
-      font-size: 14px;
-    }
-
-    .warning-text {
-      color: #dc3545;
-      font-weight: 500;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
-
-    .btn-cancel {
-      background-color: var(--bg-secondary);
-      color: var(--text-primary);
-      border: 1px solid var(--border-color);
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-cancel:hover {
-      background-color: var(--bg-tertiary);
-    }
-
-    .btn-confirm-delete {
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-confirm-delete:hover {
-      background-color: #c82333;
-    }
-
-    .folder-name-input {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      font-size: 14px;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      margin-bottom: 16px;
-    }
-
-    .folder-name-input:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-
-    .btn-confirm-create {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .btn-confirm-create:hover:not(:disabled) {
-      background-color: #1e7e34;
-    }
-
-    .btn-confirm-create:disabled {
-      background-color: #6c757d;
-      cursor: not-allowed;
-    }
-
-    .search-filter {
-      display: flex;
-      align-items: center;
-      margin: 10px 0;
-      position: relative;
-      max-width: 300px;
-    }
-
-    .name-header-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-    }
-
-    .search-filter-inline {
-      display: flex;
-      align-items: center;
-      position: relative;
-      margin-left: 8px;
-    }
-
-    .search-input-inline {
-      width: 195px;
-      padding: 4px 25px 4px 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 3px;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      font-size: 12px;
-    }
-
-    .search-input-inline:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.25);
-    }
-
-    .search-icon-inline {
-      position: absolute;
-      right: 6px;
-      color: var(--text-secondary);
-      pointer-events: none;
-      font-size: 11px;
-    }
-
-    .sortable-header {
-      position: relative;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .sort-toggle {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      font-size: 12px;
-      padding: 2px 4px;
-      border-radius: 2px;
-      transition: all 0.2s;
-      vertical-align: middle;
-      display: inline-block;
-      line-height: 1;
-    }
-
-    .sort-toggle:hover {
-      color: #007bff;
-      background-color: var(--bg-tertiary);
-    }
-
-    .search-input {
-      width: 100%;
-      padding: 8px 35px 8px 12px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      font-size: 14px;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: #007bff;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-
-    .search-icon {
-      position: absolute;
-      right: 10px;
-      color: var(--text-secondary);
-      pointer-events: none;
-    }
-
-    .pagination-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 20px;
-      padding: 15px 0;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .pagination-info {
-      color: var(--text-secondary);
-      font-size: 14px;
-    }
-
-    .pagination-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-pagination, .btn-page-number {
-      padding: 6px 12px;
-      border: 1px solid var(--border-color);
-      background-color: var(--bg-primary);
-      color: var(--text-primary);
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-
-    .btn-pagination:hover:not(:disabled), .btn-page-number:hover {
-      background-color: var(--bg-tertiary);
-      border-color: #007bff;
-    }
-
-    .btn-pagination:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-page-number.active {
-      background-color: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-
-    .page-numbers {
-      display: flex;
-      gap: 4px;
-    }
-  `]
+  `
 })
 export class DriveComponent implements OnInit {
   files = signal<FileItemDto[]>([]);
