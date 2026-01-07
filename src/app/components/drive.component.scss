@@ -28,6 +28,18 @@
   }
 }
 
+.main-content {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+
+.drive-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
 .header-left {
   display: flex;
   align-items: center;

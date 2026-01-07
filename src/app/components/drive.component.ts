@@ -39,7 +39,9 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
         </div>
       </header>
 
-      <div class="drive-content">
+      <div class="main-content">
+        <!-- Main Drive Content -->
+        <main class="drive-content">
         <!-- Loading -->
         <div *ngIf="loading()" class="loading">
           Loading files...
@@ -220,12 +222,6 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
           </div>
           <input type="file" multiple (change)="onFileSelect($event)" #fileInputEmpty style="display: none;">
         </div>
-      </div>
-
-      <!-- Footer -->
-      <footer class="drive-footer">
-        <p>Email: keshavjhawar95@gmail.com</p>
-      </footer>
 
       <!-- Delete Confirmation Modal -->
       <div *ngIf="showDeleteConfirm()" class="modal-overlay" (click)="cancelDelete()">
@@ -274,8 +270,8 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
             </div>
           </div>
           <div class="video-preview-container">
-            <video 
-              *ngIf="previewVideoUrl()" 
+            <video
+              *ngIf="previewVideoUrl()"
               [src]="previewVideoUrl()"
               class="video-player"
               controls
@@ -437,7 +433,18 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
           </form>
         </div>
       </div>
+
+        </main>
+      </div>
+
+      <!-- Footer -->
+      <footer class="drive-footer">
+        <p>Email: keshavjhawar95@gmail.com</p>
+      </footer>
+
     </div>
+
+
   `
 })
 export class DriveComponent implements OnInit {
@@ -499,6 +506,8 @@ export class DriveComponent implements OnInit {
   currentVideoPreviewFile = signal<any>(null);
   videoLoading = signal<boolean>(false);
   videoError = signal<boolean>(false);
+
+
 
   constructor(
     private driveService: DriveService,
@@ -1630,4 +1639,6 @@ export class DriveComponent implements OnInit {
       this.downloadFile(file);
     }
   }
+
+
 }
