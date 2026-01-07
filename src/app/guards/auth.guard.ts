@@ -17,7 +17,7 @@ export const authGuard: CanActivateFn = (route, state) => {
       if (isAuthenticated) {
         console.log('Authentication verified, allowing access');
         // Ensure current user is set
-        authService.setCurrentUser({ 
+        authService.setCurrentUser({
           username: response.username || 'Unknown User',
           email: response.email
         });

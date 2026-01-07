@@ -241,7 +241,7 @@ export class LoginComponent implements OnInit {
         // Check if user is authenticated using auth service helper
         if (this.authService.isAuthenticatedResponse(response)) {
           console.log('User already authenticated, redirecting to drive...');
-          this.authService.setCurrentUser({ 
+          this.authService.setCurrentUser({
             username: response.username || 'Unknown User',
             email: response.email
           });
@@ -268,11 +268,11 @@ export class LoginComponent implements OnInit {
       next: (response) => {
         console.log('Login response:', response);
         this.loading.set(false);
-        
+
         // Check if login was successful - backend returns {success: true}
         if (response && response.success === true) {
           console.log('Login successful, redirecting to drive...');
-          this.authService.setCurrentUser({ 
+          this.authService.setCurrentUser({
             username: this.credentials.username,
             email: response.email
           });
@@ -285,7 +285,7 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.loading.set(false);
         console.error('Login error:', err);
-        
+
         if (err.status === 403) {
           // Check for specific bucket assignment error
           if (err.error?.message && err.error.message.includes('storage bucket')) {

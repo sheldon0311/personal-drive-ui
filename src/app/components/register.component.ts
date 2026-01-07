@@ -16,7 +16,7 @@ import { AuthService, RegisterRequest } from '../services/auth.service';
           <h2>Create Account</h2>
           <p>Join Personal Drive to start storing your files securely</p>
         </div>
-        
+
         <form (ngSubmit)="register()" #registerForm="ngForm">
           <div class="form-group">
             <label for="username">Username</label>
@@ -93,9 +93,9 @@ import { AuthService, RegisterRequest } from '../services/auth.service';
             {{ success() }}
           </div>
 
-          <button 
-            type="submit" 
-            class="btn-register" 
+          <button
+            type="submit"
+            class="btn-register"
             [disabled]="registerForm.invalid || loading() || password() !== confirmPassword()">
             {{ loading() ? 'Creating Account...' : 'Create Account' }}
           </button>
@@ -295,13 +295,13 @@ export class RegisterComponent {
       next: (response) => {
         this.loading.set(false);
         this.success.set('Account created successfully! You can now login.');
-        
+
         // Clear form
         this.username.set('');
         this.email.set('');
         this.password.set('');
         this.confirmPassword.set('');
-        
+
         // Redirect to login after 2 seconds
         setTimeout(() => {
           this.router.navigate(['/login']);
@@ -310,7 +310,7 @@ export class RegisterComponent {
       error: (err) => {
         this.loading.set(false);
         console.error('Registration error:', err);
-        
+
         if (err.error?.message) {
           this.error.set(err.error.message);
         } else {

@@ -14,18 +14,18 @@ export const loginGuard: CanActivateFn = () => {
   return authService.checkAuthStatus().pipe(
     map(response => {
       console.log('LoginGuard - Auth status response:', response);
-      
+
       // Check if user is authenticated using auth service helper
       if (authService.isAuthenticatedResponse(response)) {
         console.log('LoginGuard: User is authenticated, redirecting to drive');
-        authService.setCurrentUser({ 
+        authService.setCurrentUser({
           username: response.username || 'Unknown User',
           email: response.email
         });
         router.navigate(['/drive']);
         return false; // Prevent access to login page
       }
-      
+
       // User is not authenticated, allow access to login page
       console.log('LoginGuard: User not authenticated, allowing access to login page');
       return true;

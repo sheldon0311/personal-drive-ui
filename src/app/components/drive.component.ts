@@ -128,6 +128,13 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                       title="Preview PDF {{ file.name }}">
                       📄
                     </button>
+                    <button
+                      *ngIf="isVideoFile(file.name)"
+                      (click)="previewVideo(file)"
+                      class="btn-video-preview-inline"
+                      title="Preview Video {{ file.name }}">
+                      🎥
+                    </button>
                   </td>
                   <td>{{ isFolder(file) ? 'Folder' : 'File' }}</td>
                   <td>{{ file.size ? formatFileSize(file.size) : '-' }}</td>
@@ -254,6 +261,35 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
         </div>
       </div>
 
+      <!-- Video Preview Modal -->
+      <div *ngIf="showVideoPreview()" class="modal-overlay" (click)="closeVideoPreview()">
+        <div class="modal-content video-preview-modal" (click)="$event.stopPropagation()">
+          <div class="video-preview-header">
+            <h3>{{ previewVideoName() }}</h3>
+            <div class="header-actions">
+              <button class="btn-download-header" (click)="downloadCurrentVideoPreview()" title="Download">
+                ⬇
+              </button>
+              <button class="btn-close-preview" (click)="closeVideoPreview()">×</button>
+            </div>
+          </div>
+          <div class="video-preview-container">
+            <video 
+              *ngIf="previewVideoUrl()" 
+              [src]="previewVideoUrl()"
+              class="video-player"
+              controls
+              preload="metadata"
+              (loadeddata)="onVideoLoad()"
+              (error)="onVideoError()">
+              Your browser does not support the video tag.
+            </video>
+            <div *ngIf="videoLoading()" class="video-loading">Loading video...</div>
+            <div *ngIf="videoError()" class="video-error">Failed to load video</div>
+          </div>
+        </div>
+      </div>
+
       <!-- PDF Preview Modal -->
       <div *ngIf="showPdfPreview()" class="modal-overlay" (click)="closePdfPreview()">
         <div class="modal-content pdf-preview-modal" (click)="$event.stopPropagation()">
@@ -266,7 +302,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
               <button class="btn-close-preview" (click)="closePdfPreview()">×</button>
             </div>
           </div>
-          
+
           <!-- Password Input for Locked PDFs -->
           <div *ngIf="pdfPasswordRequired()" class="pdf-password-container">
             <div class="password-input-section">
@@ -288,11 +324,11 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
               <div *ngIf="pdfPasswordError()" class="error">{{ pdfPasswordError() }}</div>
             </div>
           </div>
-          
+
           <!-- PDF Viewer -->
           <div *ngIf="!pdfPasswordRequired()" class="pdf-preview-container">
-            <iframe 
-              *ngIf="previewPdfUrl()" 
+            <iframe
+              *ngIf="previewPdfUrl()"
               [src]="previewPdfUrl()"
               class="pdf-viewer"
               frameborder="0"
@@ -318,9 +354,9 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
             </div>
           </div>
           <div class="image-preview-container">
-            <img 
-              *ngIf="previewImageUrl()" 
-              [src]="previewImageUrl()" 
+            <img
+              *ngIf="previewImageUrl()"
+              [src]="previewImageUrl()"
               [alt]="previewImageName()"
               class="preview-image"
               (load)="onImageLoad()"
@@ -456,6 +492,14 @@ export class DriveComponent implements OnInit {
   pdfPassword = signal<string>('');
   pdfPasswordError = signal<string | null>(null);
 
+  // Video Preview Modal
+  showVideoPreview = signal<boolean>(false);
+  previewVideoUrl = signal<string | null>(null);
+  previewVideoName = signal<string>('');
+  currentVideoPreviewFile = signal<any>(null);
+  videoLoading = signal<boolean>(false);
+  videoError = signal<boolean>(false);
+
   constructor(
     private driveService: DriveService,
     private authService: AuthService,
@@ -475,6 +519,11 @@ export class DriveComponent implements OnInit {
     // Close PDF preview modal if open
     else if (this.showPdfPreview()) {
       this.closePdfPreview();
+      event.preventDefault();
+    }
+    // Close video preview modal if open
+    else if (this.showVideoPreview()) {
+      this.closeVideoPreview();
       event.preventDefault();
     }
   }
@@ -1128,19 +1177,19 @@ export class DriveComponent implements OnInit {
           .then(blob => {
             // Create blob URL
             const blobUrl = window.URL.createObjectURL(blob);
-            
+
             // Create temporary anchor element to trigger download
             const link = document.createElement('a');
             link.href = blobUrl;
             link.download = file.name; // Set filename for download
             link.style.display = 'none';
-            
+
             // Add to DOM temporarily
             document.body.appendChild(link);
-            
+
             // Trigger download
             link.click();
-            
+
             // Clean up
             document.body.removeChild(link);
             window.URL.revokeObjectURL(blobUrl);
@@ -1448,7 +1497,7 @@ export class DriveComponent implements OnInit {
 
     this.pdfLoading.set(true);
     this.pdfPasswordError.set(null);
-    
+
     const file = this.currentPdfPreviewFile();
     if (!file) return;
 
@@ -1507,6 +1556,76 @@ export class DriveComponent implements OnInit {
    */
   downloadCurrentPdfPreview() {
     const file = this.currentPdfPreviewFile();
+    if (file) {
+      this.downloadFile(file);
+    }
+  }
+
+  /**
+   * Preview a video file
+   */
+  previewVideo(file: any) {
+    if (!this.isVideoFile(file.name)) {
+      return;
+    }
+
+    this.showVideoPreview.set(true);
+    this.previewVideoName.set(file.name);
+    this.currentVideoPreviewFile.set(file);
+    this.videoLoading.set(true);
+    this.videoError.set(false);
+    this.previewVideoUrl.set(null);
+
+    // Build the correct key using the same method as downloadFile
+    const key = this.buildFilePath(file.name);
+
+    // Get download URL for the video
+    this.driveService.getDownloadUrl(key).subscribe({
+      next: (response) => {
+        this.previewVideoUrl.set(response.url);
+        this.videoLoading.set(false);
+      },
+      error: (error) => {
+        console.error('Error getting video preview URL:', error);
+        this.videoError.set(true);
+        this.videoLoading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Close video preview modal
+   */
+  closeVideoPreview() {
+    this.showVideoPreview.set(false);
+    this.previewVideoUrl.set(null);
+    this.previewVideoName.set('');
+    this.currentVideoPreviewFile.set(null);
+    this.videoLoading.set(false);
+    this.videoError.set(false);
+  }
+
+  /**
+   * Handle successful video load
+   */
+  onVideoLoad() {
+    this.videoLoading.set(false);
+    this.videoError.set(false);
+  }
+
+  /**
+   * Handle video load error
+   */
+  onVideoError() {
+    this.videoLoading.set(false);
+    this.videoError.set(true);
+  }
+
+  /**
+   * Download the currently previewed video
+   */
+  downloadCurrentVideoPreview() {
+    const file = this.currentVideoPreviewFile();
     if (file) {
       this.downloadFile(file);
     }

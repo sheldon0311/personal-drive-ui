@@ -63,7 +63,7 @@ export class AuthService {
     if (csrfToken) {
       headers['X-XSRF-TOKEN'] = csrfToken;
     }
-    
+
     return this.http.post(`${this.apiUrl}/api/auth/login`, credentials, {
       withCredentials: true,
       headers
@@ -108,7 +108,7 @@ export class AuthService {
     if (csrfToken) {
       headers['X-XSRF-TOKEN'] = csrfToken;
     }
-    
+
     return this.http.post(`${this.apiUrl}/api/auth/logout`, {}, {
       withCredentials: true,
       headers

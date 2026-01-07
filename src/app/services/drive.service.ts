@@ -23,11 +23,11 @@ export class DriveService {
     if (!parentPath || parentPath.trim() === '') {
       return fileName;
     }
-    
+
     // Remove trailing slashes from parent path and leading slashes from filename
     const cleanParentPath = parentPath.replace(/\/$/, '');
     const cleanFileName = fileName.replace(/^\//, '');
-    
+
     return `${cleanParentPath}/${cleanFileName}`;
   }
 
@@ -37,9 +37,9 @@ export class DriveService {
    */
   listFiles(path: string = ''): Observable<FileItemDto[]> {
     const params = new HttpParams().set('path', path);
-    return this.http.get<FileItemDto[]>(`${this.apiUrl}/list`, { 
+    return this.http.get<FileItemDto[]>(`${this.apiUrl}/list`, {
       params,
-      withCredentials: true 
+      withCredentials: true
     });
   }
 
@@ -71,21 +71,21 @@ export class DriveService {
     const fullPath = this.buildPath(parentPath, folderName);
     const params = new HttpParams().set('path', fullPath);
     console.log('Fetching fresh CSRF token before creating folder:', fullPath);
-    
+
     // First get fresh CSRF token from API, then proceed with folder creation
     return this.fetchCsrfTokenFromBackend().pipe(
       switchMap((csrfResponse: any) => {
         console.log('CSRF response for folder creation:', csrfResponse);
         const csrfToken = csrfResponse.token || csrfResponse.csrfToken || csrfResponse._csrf || csrfResponse;
         const headers: any = {};
-        
+
         if (csrfToken && typeof csrfToken === 'string') {
           headers['X-XSRF-TOKEN'] = csrfToken;
           console.log('Using fresh CSRF token for folder creation:', csrfToken);
         } else {
           console.error('No valid CSRF token found in API response:', csrfResponse);
         }
-        
+
         console.log('Making create folder request at path:', fullPath);
         return this.http.post<void>(`${this.apiUrl}/folder`, {}, {
           params,
@@ -104,14 +104,14 @@ export class DriveService {
   getUploadUrl(key: string, csrfToken?: string): Observable<PresignedUrlResponse> {
     const params = new HttpParams().set('key', key);
     console.log('Requesting upload URL for key:', key);
-    
+
     const headers: any = {};
     if (csrfToken) {
       headers['X-XSRF-TOKEN'] = csrfToken;
       console.log('Using provided CSRF token for upload URL');
     }
-    
-    return this.http.post<PresignedUrlResponse>(`${this.apiUrl}/upload-url`, {}, { 
+
+    return this.http.post<PresignedUrlResponse>(`${this.apiUrl}/upload-url`, {}, {
       params,
       withCredentials: true,
       headers
@@ -124,9 +124,9 @@ export class DriveService {
    */
   getDownloadUrl(key: string): Observable<PresignedUrlResponse> {
     const params = new HttpParams().set('key', key);
-    return this.http.get<PresignedUrlResponse>(`${this.apiUrl}/download-url`, { 
+    return this.http.get<PresignedUrlResponse>(`${this.apiUrl}/download-url`, {
       params,
-      withCredentials: true 
+      withCredentials: true
     });
   }
 
@@ -137,23 +137,23 @@ export class DriveService {
   deleteFile(key: string): Observable<void> {
     const params = new HttpParams().set('key', key);
     console.log('Fetching fresh CSRF token before deleting file:', key);
-    
+
     // First get fresh CSRF token from API, then proceed with deletion
     return this.fetchCsrfTokenFromBackend().pipe(
       switchMap((csrfResponse: any) => {
         console.log('CSRF response for file deletion:', csrfResponse);
         const csrfToken = csrfResponse.token || csrfResponse.csrfToken || csrfResponse._csrf || csrfResponse;
         const headers: any = {};
-        
+
         if (csrfToken && typeof csrfToken === 'string') {
           headers['X-XSRF-TOKEN'] = csrfToken;
           console.log('Using fresh CSRF token for file deletion:', csrfToken);
         } else {
           console.error('No valid CSRF token found in API response:', csrfResponse);
         }
-        
+
         console.log('Making delete request for file:', key);
-        return this.http.delete<void>(`${this.apiUrl}`, { 
+        return this.http.delete<void>(`${this.apiUrl}`, {
           params,
           withCredentials: true,
           headers
@@ -169,23 +169,23 @@ export class DriveService {
   deleteFolder(path: string): Observable<void> {
     const params = new HttpParams().set('path', path);
     console.log('Fetching fresh CSRF token before deleting folder:', path);
-    
+
     // First get fresh CSRF token from API, then proceed with deletion
     return this.fetchCsrfTokenFromBackend().pipe(
       switchMap((csrfResponse: any) => {
         console.log('CSRF response for folder deletion:', csrfResponse);
         const csrfToken = csrfResponse.token || csrfResponse.csrfToken || csrfResponse._csrf || csrfResponse;
         const headers: any = {};
-        
+
         if (csrfToken && typeof csrfToken === 'string') {
           headers['X-XSRF-TOKEN'] = csrfToken;
           console.log('Using fresh CSRF token for folder deletion:', csrfToken);
         } else {
           console.error('No valid CSRF token found in API response:', csrfResponse);
         }
-        
+
         console.log('Making delete request for folder:', path);
-        return this.http.delete<void>(`${this.apiUrl}/folder`, { 
+        return this.http.delete<void>(`${this.apiUrl}/folder`, {
           params,
           withCredentials: true,
           headers
@@ -224,15 +224,15 @@ export class DriveService {
    */
   private getCsrfToken(): string | null {
     console.log('All cookies:', document.cookie);
-    
+
     // Try different cookie names that Spring Security might use
     const cookieNames = ['XSRF-TOKEN', 'CSRF-TOKEN', 'X-CSRF-TOKEN'];
-    
+
     for (const cookieName of cookieNames) {
       const cookieValue = document.cookie
         .split('; ')
         .find(row => row.startsWith(`${cookieName}=`));
-      
+
       if (cookieValue) {
         const token = decodeURIComponent(cookieValue.split('=')[1]);
         console.log(`Found CSRF token in cookie ${cookieName}:`, token);
@@ -241,7 +241,7 @@ export class DriveService {
         console.log(`No ${cookieName} cookie found`);
       }
     }
-    
+
     console.log('No CSRF token found in any expected cookie names');
     return null;
   }
