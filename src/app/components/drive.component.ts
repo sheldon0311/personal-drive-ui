@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { DriveService } from '../services/drive.service';
 import { AuthService, User } from '../services/auth.service';
 import { FileItemDto, StorageUsage } from '../models/drive.models';
@@ -72,7 +73,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
             </div>
           </div>
           <input type="file" multiple (change)="onFileSelect($event)" #fileInput style="display: none;">
-          
+
           <!-- Table section - only show when files exist -->
           <div *ngIf="files().length > 0">
             <table>
@@ -82,9 +83,9 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                     <div class="name-header-container">
                       <span>Name</span>
                       <div class="search-filter-inline">
-                        <input 
-                          type="text" 
-                          placeholder="Search..." 
+                        <input
+                          type="text"
+                          placeholder="Search..."
                           [(ngModel)]="searchTerm"
                           class="search-input-inline"
                           (input)="onSearchChange($event)">
@@ -96,9 +97,9 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                   <th>Size</th>
                   <th class="sortable-header">
                     Modified Date
-                    <button 
+                    <button
                       (click)="toggleDateSort()"
-                      class="sort-toggle" 
+                      class="sort-toggle"
                       [title]="getSortTooltip()">
                       {{ getSortArrow() }}
                     </button>
@@ -113,6 +114,20 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                       (click)="isFolder(file) ? navigateToFolder(file.name) : null"
                       [class.clickable]="isFolder(file)">
                       {{ getDisplayName(file.name) }}</span>
+                    <button
+                      *ngIf="isImageFile(file.name)"
+                      (click)="previewImage(file)"
+                      class="btn-preview-inline"
+                      title="Preview {{ file.name }}">
+                      P
+                    </button>
+                    <button
+                      *ngIf="isPdfFile(file.name)"
+                      (click)="previewPdf(file)"
+                      class="btn-pdf-preview-inline"
+                      title="Preview PDF {{ file.name }}">
+                      📄
+                    </button>
                   </td>
                   <td>{{ isFolder(file) ? 'Folder' : 'File' }}</td>
                   <td>{{ file.size ? formatFileSize(file.size) : '-' }}</td>
@@ -135,44 +150,44 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                 </tr>
               </tbody>
             </table>
-            
+
             <!-- Pagination Controls -->
             <div *ngIf="totalPages() > 1" class="pagination-container">
               <div class="pagination-info">
                 Page {{ currentPage() }} of {{ totalPages() }} ({{ filteredFiles().length }} items)
               </div>
               <div class="pagination-controls">
-                <button 
-                  (click)="goToPage(1)" 
+                <button
+                  (click)="goToPage(1)"
                   [disabled]="currentPage() === 1"
                   class="btn-pagination">
                   First
                 </button>
-                <button 
-                  (click)="goToPage(currentPage() - 1)" 
+                <button
+                  (click)="goToPage(currentPage() - 1)"
                   [disabled]="currentPage() === 1"
                   class="btn-pagination">
                   ← Previous
                 </button>
-                
+
                 <span class="page-numbers">
-                  <button 
-                    *ngFor="let page of getPageNumbers()" 
+                  <button
+                    *ngFor="let page of getPageNumbers()"
                     (click)="goToPage(page)"
                     [class.active]="page === currentPage()"
                     class="btn-page-number">
                     {{ page }}
                   </button>
                 </span>
-                
-                <button 
-                  (click)="goToPage(currentPage() + 1)" 
+
+                <button
+                  (click)="goToPage(currentPage() + 1)"
                   [disabled]="currentPage() === totalPages()"
                   class="btn-pagination">
                   Next →
                 </button>
-                <button 
-                  (click)="goToPage(totalPages())" 
+                <button
+                  (click)="goToPage(totalPages())"
                   [disabled]="currentPage() === totalPages()"
                   class="btn-pagination">
                   Last
@@ -202,7 +217,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
 
       <!-- Footer -->
       <footer class="drive-footer">
-        <p>Email: keshvajhawar95@gmail.com</p>
+        <p>Email: keshavjhawar95@gmail.com</p>
       </footer>
 
       <!-- Delete Confirmation Modal -->
@@ -217,14 +232,14 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
           </div>
         </div>
       </div>
-      
+
       <!-- Create Folder Modal -->
       <div *ngIf="showCreateFolderModal()" class="modal-overlay" (click)="cancelCreateFolder()">
         <div class="modal-content" (click)="$event.stopPropagation()">
           <h3>Create New Folder</h3>
           <p>Enter a name for the new folder:</p>
-          <input 
-            type="text" 
+          <input
+            type="text"
             [(ngModel)]="newFolderName"
             placeholder="Folder name"
             class="folder-name-input"
@@ -238,7 +253,84 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
           </div>
         </div>
       </div>
-      
+
+      <!-- PDF Preview Modal -->
+      <div *ngIf="showPdfPreview()" class="modal-overlay" (click)="closePdfPreview()">
+        <div class="modal-content pdf-preview-modal" (click)="$event.stopPropagation()">
+          <div class="pdf-preview-header">
+            <h3>{{ previewPdfName() }}</h3>
+            <div class="header-actions">
+              <button class="btn-download-header" (click)="downloadCurrentPdfPreview()" title="Download">
+                ⬇
+              </button>
+              <button class="btn-close-preview" (click)="closePdfPreview()">×</button>
+            </div>
+          </div>
+          
+          <!-- Password Input for Locked PDFs -->
+          <div *ngIf="pdfPasswordRequired()" class="pdf-password-container">
+            <div class="password-input-section">
+              <h4>🔒 This PDF is password protected</h4>
+              <div class="form-group">
+                <input
+                  type="password"
+                  [(ngModel)]="pdfPassword"
+                  placeholder="Enter PDF password"
+                  class="form-input"
+                  (keyup.enter)="loadPdfWithPassword()">
+              </div>
+              <div class="password-actions">
+                <button class="btn-confirm-create" (click)="loadPdfWithPassword()" [disabled]="!pdfPassword().trim()">
+                  Unlock PDF
+                </button>
+                <button class="btn-cancel" (click)="closePdfPreview()">Cancel</button>
+              </div>
+              <div *ngIf="pdfPasswordError()" class="error">{{ pdfPasswordError() }}</div>
+            </div>
+          </div>
+          
+          <!-- PDF Viewer -->
+          <div *ngIf="!pdfPasswordRequired()" class="pdf-preview-container">
+            <iframe 
+              *ngIf="previewPdfUrl()" 
+              [src]="previewPdfUrl()"
+              class="pdf-viewer"
+              frameborder="0"
+              (load)="onPdfLoad()"
+              (error)="onPdfError()">
+            </iframe>
+            <div *ngIf="pdfLoading()" class="pdf-loading">Loading PDF...</div>
+            <div *ngIf="pdfError()" class="pdf-error">Failed to load PDF</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image Preview Modal -->
+      <div *ngIf="showImagePreview()" class="modal-overlay" (click)="closeImagePreview()">
+        <div class="modal-content image-preview-modal" (click)="$event.stopPropagation()">
+          <div class="image-preview-header">
+            <h3>{{ previewImageName() }}</h3>
+            <div class="header-actions">
+              <button class="btn-download-header" (click)="downloadCurrentPreview()" title="Download">
+                ⬇
+              </button>
+              <button class="btn-close-preview" (click)="closeImagePreview()">×</button>
+            </div>
+          </div>
+          <div class="image-preview-container">
+            <img 
+              *ngIf="previewImageUrl()" 
+              [src]="previewImageUrl()" 
+              [alt]="previewImageName()"
+              class="preview-image"
+              (load)="onImageLoad()"
+              (error)="onImageError()">
+            <div *ngIf="imageLoading()" class="image-loading">Loading image...</div>
+            <div *ngIf="imageError()" class="image-error">Failed to load image</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Update Profile Modal -->
       <div *ngIf="showUpdateProfileModal()" class="modal-overlay" (click)="cancelUpdateProfile()">
         <div class="modal-content update-profile-modal" (click)="$event.stopPropagation()">
@@ -299,8 +391,8 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
 
             <div class="modal-actions">
               <button type="button" (click)="cancelUpdateProfile()" class="btn-cancel">Cancel</button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 class="btn-confirm-update"
                 [disabled]="updateProfileLoading() || (!updateProfileData.email() && !updateProfileData.newPassword())">
                 {{ updateProfileLoading() ? 'Updating...' : 'Update Profile' }}
@@ -345,12 +437,46 @@ export class DriveComponent implements OnInit {
   updateProfileError = signal<string | null>(null);
   updateProfileSuccess = signal<string | null>(null);
 
+  // Image Preview Modal
+  showImagePreview = signal<boolean>(false);
+  previewImageUrl = signal<string | null>(null);
+  previewImageName = signal<string>('');
+  currentPreviewFile = signal<any>(null);
+  imageLoading = signal<boolean>(false);
+  imageError = signal<boolean>(false);
+
+  // PDF Preview Modal
+  showPdfPreview = signal<boolean>(false);
+  previewPdfUrl = signal<SafeResourceUrl | null>(null);
+  previewPdfName = signal<string>('');
+  currentPdfPreviewFile = signal<any>(null);
+  pdfLoading = signal<boolean>(false);
+  pdfError = signal<boolean>(false);
+  pdfPasswordRequired = signal<boolean>(false);
+  pdfPassword = signal<string>('');
+  pdfPasswordError = signal<string | null>(null);
+
   constructor(
     private driveService: DriveService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {
     this.currentUser.set(this.authService.currentUserValue);
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(event: Event) {
+    // Close image preview modal if open
+    if (this.showImagePreview()) {
+      this.closeImagePreview();
+      event.preventDefault();
+    }
+    // Close PDF preview modal if open
+    else if (this.showPdfPreview()) {
+      this.closePdfPreview();
+      event.preventDefault();
+    }
   }
 
   ngOnInit() {
@@ -419,19 +545,19 @@ export class DriveComponent implements OnInit {
   updateFilteredFiles() {
     const search = this.searchTerm().toLowerCase().trim();
     let filtered: FileItemDto[];
-    
+
     if (!search) {
       filtered = this.files();
     } else {
-      filtered = this.files().filter(file => 
+      filtered = this.files().filter(file =>
         this.getDisplayName(file.name).toLowerCase().includes(search)
       );
     }
-    
+
     // Sort the filtered files
     const sorted = this.sortFiles(filtered);
     this.filteredFiles.set(sorted);
-    
+
     // Reset to first page when filter changes
     this.currentPage.set(1);
     this.updatePagination();
@@ -440,29 +566,29 @@ export class DriveComponent implements OnInit {
   sortFiles(files: FileItemDto[]): FileItemDto[] {
     return files.sort((a, b) => {
       const dateSort = this.dateSort();
-      
+
       // If date sorting is active, sort all items by date only
       if (dateSort === 'asc' || dateSort === 'desc') {
         const aDate = a.lastModified ? new Date(a.lastModified).getTime() : 0;
         const bDate = b.lastModified ? new Date(b.lastModified).getTime() : 0;
         return dateSort === 'asc' ? aDate - bDate : bDate - aDate;
       }
-      
+
       // Default sorting: Folders first, then files by date desc
       const aIsFolder = this.isFolder(a);
       const bIsFolder = this.isFolder(b);
-      
+
       // Folders come first
       if (aIsFolder && !bIsFolder) return -1;
       if (!aIsFolder && bIsFolder) return 1;
-      
+
       // If both are folders, sort alphabetically by name
       if (aIsFolder && bIsFolder) {
         const aName = this.getDisplayName(a.name).toLowerCase();
         const bName = this.getDisplayName(b.name).toLowerCase();
         return aName.localeCompare(bName);
       }
-      
+
       // If both are files, sort by modified date descending (newest first)
       const aDate = a.lastModified ? new Date(a.lastModified).getTime() : 0;
       const bDate = b.lastModified ? new Date(b.lastModified).getTime() : 0;
@@ -474,19 +600,19 @@ export class DriveComponent implements OnInit {
     const totalItems = this.filteredFiles().length;
     const itemsPerPage = this.itemsPerPage();
     const totalPages = Math.ceil(totalItems / itemsPerPage);
-    
+
     this.totalPages.set(Math.max(1, totalPages));
-    
+
     // Ensure current page is valid
     if (this.currentPage() > totalPages) {
       this.currentPage.set(Math.max(1, totalPages));
     }
-    
+
     // Calculate paginated files
     const startIndex = (this.currentPage() - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginated = this.filteredFiles().slice(startIndex, endIndex);
-    
+
     this.paginatedFiles.set(paginated);
   }
 
@@ -501,16 +627,16 @@ export class DriveComponent implements OnInit {
     const currentPage = this.currentPage();
     const totalPages = this.totalPages();
     const pages: number[] = [];
-    
+
     // Show up to 5 page numbers centered around current page
     const maxPages = 5;
     const startPage = Math.max(1, currentPage - Math.floor(maxPages / 2));
     const endPage = Math.min(totalPages, startPage + maxPages - 1);
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
-    
+
     return pages;
   }
 
@@ -533,11 +659,11 @@ export class DriveComponent implements OnInit {
     // Preserve duplicate file errors during reload
     const currentError = this.error();
     const preserveError = currentError && currentError.includes('Files with the same name already exist');
-    
+
     if (!preserveError) {
       this.error.set(null);
     }
-    
+
     console.log(`=== LOAD FILES DEBUG ===`);
     console.log(`Loading files for path: "${this.currentPath()}"`);
 
@@ -548,7 +674,7 @@ export class DriveComponent implements OnInit {
           console.log(`  ${index}: name="${file.name}", isDirectory=${file.isDirectory || file.folder}`);
         });
         console.log(`=== END LOAD FILES DEBUG ===`);
-        
+
         // Sort files before setting them
         const sortedFiles = this.sortFiles(files);
         this.files.set(sortedFiles);
@@ -586,19 +712,19 @@ export class DriveComponent implements OnInit {
     console.log(`=== NAVIGATE TO FOLDER DEBUG ===`);
     console.log(`Input folderName: "${folderName}"`);
     console.log(`Current path before navigation: "${this.currentPath()}"`);
-    
+
     // Extract just the folder name if it contains a full path
     const actualFolderName = folderName.includes('/') ? folderName.split('/').pop() || folderName : folderName;
     console.log(`Extracted actualFolderName: "${actualFolderName}"`);
-    
+
     // Remove trailing slashes
     const cleanFolderName = actualFolderName.replace(/\/$/, '');
     console.log(`Clean folderName: "${cleanFolderName}"`);
-    
+
     const newPath = this.buildFilePath(cleanFolderName);
     console.log(`Built new path: "${newPath}"`);
     console.log(`=== END DEBUG ===`);
-    
+
     this.currentPath.set(newPath);
     this.loadFiles();
   }
@@ -608,11 +734,11 @@ export class DriveComponent implements OnInit {
     if (!currentPathValue) {
       return; // Already at root
     }
-    
+
     // Split by '/' and remove the last part
     const pathParts = currentPathValue.split('/').filter(part => part.length > 0);
     pathParts.pop();
-    
+
     const newPath = pathParts.join('/');
     console.log(`Navigating up from "${currentPathValue}" to "${newPath}"`);
     this.currentPath.set(newPath);
@@ -633,11 +759,11 @@ export class DriveComponent implements OnInit {
     if (!currentPath) {
       return fileName;
     }
-    
+
     // Remove trailing slashes from current path and leading slashes from filename
     const cleanPath = currentPath.replace(/\/$/, '');
     const cleanFileName = fileName.replace(/^\//, '');
-    
+
     return `${cleanPath}/${cleanFileName}`;
   }
 
@@ -646,12 +772,12 @@ export class DriveComponent implements OnInit {
    */
   getDisplayName(name: string): string {
     if (!name) return name;
-    
+
     // Remove trailing slashes and extract last part of path
     const cleanName = name.replace(/\/$/, '');
     const parts = cleanName.split('/');
     const displayName = parts[parts.length - 1] || name;
-    
+
     // Trim any whitespace
     return displayName.trim();
   }
@@ -662,7 +788,7 @@ export class DriveComponent implements OnInit {
   getDisplayPath(): string {
     const path = this.currentPath().trim();
     if (!path) return '';
-    
+
     // Clean up the path by removing extra slashes and empty parts
     return path.split('/').filter(part => part.length > 0).join('/');
   }
@@ -672,10 +798,10 @@ export class DriveComponent implements OnInit {
    */
   isImageFile(fileName: string): boolean {
     if (!fileName) return false;
-    
+
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff', '.heic', '.avif'];
     const extension = fileName.toLowerCase().split('.').pop();
-    
+
     return extension ? imageExtensions.includes('.' + extension) : false;
   }
 
@@ -684,10 +810,10 @@ export class DriveComponent implements OnInit {
    */
   isExcelFile(fileName: string): boolean {
     if (!fileName) return false;
-    
+
     const excelExtensions = ['.xls', '.xlsx', '.xlsm', '.xlsb', '.xlt', '.xltx', '.xltm', '.csv', '.ods', '.xml'];
     const extension = fileName.toLowerCase().split('.').pop();
-    
+
     return extension ? excelExtensions.includes('.' + extension) : false;
   }
 
@@ -696,7 +822,7 @@ export class DriveComponent implements OnInit {
    */
   isPdfFile(fileName: string): boolean {
     if (!fileName) return false;
-    
+
     const extension = fileName.toLowerCase().split('.').pop();
     return extension === 'pdf';
   }
@@ -706,10 +832,10 @@ export class DriveComponent implements OnInit {
    */
   isVideoFile(fileName: string): boolean {
     if (!fileName) return false;
-    
+
     const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv', '.ts', '.mts'];
     const extension = fileName.toLowerCase().split('.').pop();
-    
+
     return extension ? videoExtensions.includes('.' + extension) : false;
   }
 
@@ -958,7 +1084,7 @@ export class DriveComponent implements OnInit {
     // Get current error message (might include duplicate file info)
     const currentError = this.error();
     let finalErrorMessage = null;
-    
+
     if (failed > 0) {
       const newErrorMsg = `${completed} files uploaded successfully, ${failed} failed`;
       if (currentError && currentError.includes('Files with the same name already exist')) {
@@ -996,8 +1122,33 @@ export class DriveComponent implements OnInit {
 
     this.driveService.getDownloadUrl(key).subscribe({
       next: (response) => {
-        // Open download URL in new tab
-        window.open(response.url, '_blank');
+        // Fetch the file as a blob to ensure download behavior
+        fetch(response.url)
+          .then(response => response.blob())
+          .then(blob => {
+            // Create blob URL
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            // Create temporary anchor element to trigger download
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = file.name; // Set filename for download
+            link.style.display = 'none';
+            
+            // Add to DOM temporarily
+            document.body.appendChild(link);
+            
+            // Trigger download
+            link.click();
+            
+            // Clean up
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+          })
+          .catch(error => {
+            console.error('Download failed:', error);
+            this.error.set('Download failed: ' + error.message);
+          });
       },
       error: (err) => {
         this.error.set('Download failed: ' + err.message);
@@ -1054,22 +1205,22 @@ export class DriveComponent implements OnInit {
 
   formatDate(dateString: string): string {
     if (!dateString) return '-';
-    
+
     try {
       const date = new Date(dateString);
       // Check if date is valid
       if (isNaN(date.getTime())) return '-';
-      
+
       // Format to "dd MMM, yyyy hh:mm a" format
       const day = date.getDate().toString().padStart(2, '0');
       const month = date.toLocaleDateString('en-US', { month: 'short' });
       const year = date.getFullYear();
-      const time = date.toLocaleTimeString([], { 
-        hour: '2-digit', 
+      const time = date.toLocaleTimeString([], {
+        hour: '2-digit',
         minute: '2-digit',
         hour12: true
       });
-      
+
       return `${day} ${month}, ${year} ${time}`;
     } catch (error) {
       console.error('Error formatting date:', error);
@@ -1132,11 +1283,11 @@ export class DriveComponent implements OnInit {
     this.updateProfileSuccess.set(null);
 
     const updateData: any = {};
-    
+
     if (email && email !== this.currentUser()?.email) {
       updateData.email = email;
     }
-    
+
     if (newPassword) {
       updateData.currentPassword = currentPassword;
       updateData.newPassword = newPassword;
@@ -1146,19 +1297,19 @@ export class DriveComponent implements OnInit {
       next: (response) => {
         this.updateProfileLoading.set(false);
         this.updateProfileSuccess.set(response.message || 'Profile updated successfully!');
-        
+
         // Update current user data
         if (response.email) {
-          this.authService.setCurrentUser({ 
+          this.authService.setCurrentUser({
             username: response.username,
-            email: response.email 
+            email: response.email
           });
           this.currentUser.set({
             username: response.username,
             email: response.email
           });
         }
-        
+
         // Close modal after 2 seconds
         setTimeout(() => {
           this.cancelUpdateProfile();
@@ -1167,7 +1318,7 @@ export class DriveComponent implements OnInit {
       error: (err) => {
         this.updateProfileLoading.set(false);
         console.error('Update profile error:', err);
-        
+
         if (err.error?.message) {
           this.updateProfileError.set(err.error.message);
         } else {
@@ -1175,5 +1326,189 @@ export class DriveComponent implements OnInit {
         }
       }
     });
+  }
+
+  /**
+   * Preview an image file
+   */
+  previewImage(file: any) {
+    if (!this.isImageFile(file.name)) {
+      return;
+    }
+
+    this.showImagePreview.set(true);
+    this.previewImageName.set(file.name);
+    this.currentPreviewFile.set(file);
+    this.imageLoading.set(true);
+    this.imageError.set(false);
+    this.previewImageUrl.set(null);
+
+    // Build the correct key using the same method as downloadFile
+    const key = this.buildFilePath(file.name);
+
+    // Get download URL for the image
+    this.driveService.getDownloadUrl(key).subscribe({
+      next: (response) => {
+        this.previewImageUrl.set(response.url);
+      },
+      error: (error) => {
+        console.error('Error getting image preview URL:', error);
+        this.imageError.set(true);
+        this.imageLoading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Close image preview modal
+   */
+  closeImagePreview() {
+    this.showImagePreview.set(false);
+    this.previewImageUrl.set(null);
+    this.previewImageName.set('');
+    this.currentPreviewFile.set(null);
+    this.imageLoading.set(false);
+    this.imageError.set(false);
+  }
+
+  /**
+   * Handle successful image load
+   */
+  onImageLoad() {
+    this.imageLoading.set(false);
+    this.imageError.set(false);
+  }
+
+  /**
+   * Handle image load error
+   */
+  onImageError() {
+    this.imageLoading.set(false);
+    this.imageError.set(true);
+  }
+
+  /**
+   * Download the currently previewed image
+   */
+  downloadCurrentPreview() {
+    const file = this.currentPreviewFile();
+    if (file) {
+      this.downloadFile(file);
+    }
+  }
+
+  /**
+   * Preview a PDF file
+   */
+  previewPdf(file: any) {
+    if (!this.isPdfFile(file.name)) {
+      return;
+    }
+
+    this.showPdfPreview.set(true);
+    this.previewPdfName.set(file.name);
+    this.currentPdfPreviewFile.set(file);
+    this.pdfLoading.set(true);
+    this.pdfError.set(false);
+    this.pdfPasswordRequired.set(false);
+    this.previewPdfUrl.set(null);
+    this.pdfPassword.set('');
+    this.pdfPasswordError.set(null);
+
+    // Build the correct key using the same method as downloadFile
+    const key = this.buildFilePath(file.name);
+
+    // Get download URL for the PDF
+    this.driveService.getDownloadUrl(key).subscribe({
+      next: (response) => {
+        const sanitizedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(response.url);
+        this.previewPdfUrl.set(sanitizedUrl);
+        this.pdfLoading.set(false);
+      },
+      error: (error) => {
+        console.error('Error getting PDF preview URL:', error);
+        if (error.status === 401 && error.error?.message?.includes('password')) {
+          this.pdfPasswordRequired.set(true);
+          this.pdfLoading.set(false);
+        } else {
+          this.pdfError.set(true);
+          this.pdfLoading.set(false);
+        }
+      }
+    });
+  }
+
+  /**
+   * Load PDF with password
+   */
+  loadPdfWithPassword() {
+    if (!this.pdfPassword().trim()) {
+      return;
+    }
+
+    this.pdfLoading.set(true);
+    this.pdfPasswordError.set(null);
+    
+    const file = this.currentPdfPreviewFile();
+    if (!file) return;
+
+    const key = this.buildFilePath(file.name);
+
+    // You'll need to implement password-protected PDF handling in your backend
+    // For now, this is a placeholder for the API call with password
+    this.driveService.getDownloadUrl(key).subscribe({
+      next: (response) => {
+        const sanitizedUrl = this.sanitizer.bypassSecurityTrustResourceUrl(response.url);
+        this.previewPdfUrl.set(sanitizedUrl);
+        this.pdfPasswordRequired.set(false);
+        this.pdfLoading.set(false);
+      },
+      error: (error) => {
+        console.error('Error loading PDF with password:', error);
+        this.pdfPasswordError.set('Invalid password or PDF error');
+        this.pdfLoading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Close PDF preview modal
+   */
+  closePdfPreview() {
+    this.showPdfPreview.set(false);
+    this.previewPdfUrl.set(null);
+    this.previewPdfName.set('');
+    this.currentPdfPreviewFile.set(null);
+    this.pdfLoading.set(false);
+    this.pdfError.set(false);
+    this.pdfPasswordRequired.set(false);
+    this.pdfPassword.set('');
+    this.pdfPasswordError.set(null);
+  }
+
+  /**
+   * Handle successful PDF load
+   */
+  onPdfLoad() {
+    this.pdfLoading.set(false);
+    this.pdfError.set(false);
+  }
+
+  /**
+   * Handle PDF load error
+   */
+  onPdfError() {
+    this.pdfLoading.set(false);
+    this.pdfError.set(true);
+  }
+
+  /**
+   * Download the currently previewed PDF
+   */
+  downloadCurrentPdfPreview() {
+    const file = this.currentPdfPreviewFile();
+    if (file) {
+      this.downloadFile(file);
+    }
   }
 }
