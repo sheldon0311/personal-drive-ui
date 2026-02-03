@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { DriveService } from '../services/drive.service';
 import { AuthService, User } from '../services/auth.service';
@@ -10,7 +10,7 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
 @Component({
   selector: 'app-drive',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   styleUrls: ['./drive.component.scss'],
   template: `
     <div class="drive-container">
@@ -39,6 +39,24 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
         </div>
       </header>
 
+      <div class="main-layout">
+        <aside class="sidebar" [class.collapsed]="isSidebarCollapsed()">
+          <button class="sidebar-toggle" (click)="toggleSidebar()" [title]="isSidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+            <span *ngIf="!isSidebarCollapsed()">◀</span>
+            <span *ngIf="isSidebarCollapsed()">▶</span>
+          </button>
+          <nav class="sidebar-nav">
+            <button class="sidebar-btn" routerLink="/drive" routerLinkActive="active">
+              <span class="sidebar-icon">🗂️</span>
+              <span class="sidebar-text" *ngIf="!isSidebarCollapsed()">Drive</span>
+            </button>
+            <button class="sidebar-btn" routerLink="/photos" routerLinkActive="active">
+              <span class="sidebar-icon">🖼️</span>
+              <span class="sidebar-text" *ngIf="!isSidebarCollapsed()">Media</span>
+            </button>
+          </nav>
+        </aside>
+        <div class="content-wrapper">
       <div class="main-content">
         <!-- Main Drive Content -->
         <main class="drive-content">
@@ -146,6 +164,12 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
                       <button
                         *ngIf="!isFolder(file)"
                         (click)="downloadFile(file)"
+                        class="btn-download">
+                        Download
+                      </button>
+                      <button
+                        *ngIf="isFolder(file)"
+                        (click)="downloadFolder(file)"
                         class="btn-download">
                         Download
                       </button>
@@ -436,6 +460,8 @@ import { FileItemDto, StorageUsage } from '../models/drive.models';
 
         </main>
       </div>
+      </div>
+      </div>
 
       <!-- Footer -->
       <footer class="drive-footer">
@@ -506,6 +532,9 @@ export class DriveComponent implements OnInit {
   currentVideoPreviewFile = signal<any>(null);
   videoLoading = signal<boolean>(false);
   videoError = signal<boolean>(false);
+
+  // Sidebar state
+  isSidebarCollapsed = signal<boolean>(false);
 
 
 
@@ -1217,6 +1246,39 @@ export class DriveComponent implements OnInit {
     });
   }
 
+  downloadFolder(file: FileItemDto) {
+    const folderPath = this.buildFilePath(file.name);
+
+    this.driveService.downloadFolder(folderPath).subscribe({
+      next: (response: Blob) => {
+        // Create blob URL
+        const blobUrl = window.URL.createObjectURL(response);
+
+        // Create temporary anchor element to trigger download
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${file.name}.zip`; // Set filename for download with .zip extension
+        link.style.display = 'none';
+
+        // Add to DOM temporarily
+        document.body.appendChild(link);
+
+        // Trigger download
+        link.click();
+
+        // Clean up
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      },
+      error: (err) => {
+        this.error.set('Folder download failed: ' + err.message);
+        if (err.status === 401 || err.status === 403) {
+          this.router.navigate(['/login']);
+        }
+      }
+    });
+  }
+
   deleteItem(file: FileItemDto) {
     this.itemToDelete.set(file);
     this.showDeleteConfirm.set(true);
@@ -1294,6 +1356,10 @@ export class DriveComponent implements OnInit {
 
   toggleUserDropdown() {
     this.showUserDropdown.set(!this.showUserDropdown());
+  }
+
+  toggleSidebar() {
+    this.isSidebarCollapsed.set(!this.isSidebarCollapsed());
   }
 
   openUpdateProfile() {

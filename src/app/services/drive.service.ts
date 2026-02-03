@@ -195,6 +195,19 @@ export class DriveService {
   }
 
   /**
+   * Download a folder as a zip file
+   * @param folderPath Path to the folder to download
+   */
+  downloadFolder(folderPath: string): Observable<Blob> {
+    const params = new HttpParams().set('folderPath', folderPath);
+    return this.http.get(`${this.apiUrl}/download-folder`, {
+      params,
+      withCredentials: true,
+      responseType: 'blob'
+    });
+  }
+
+  /**
    * Get storage usage statistics
    */
   getStorageUsage(): Observable<StorageUsage> {

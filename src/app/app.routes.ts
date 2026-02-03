@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { PhotosComponent } from './components/photos.component';
 import { authGuard } from './guards/auth.guard';
 import { loginGuard } from './guards/login.guard';
 
@@ -21,6 +22,11 @@ export const routes: Routes = [
   {
     path: 'drive',
     loadComponent: () => import('./components/drive.component').then(c => c.DriveComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'photos',
+    component: PhotosComponent,
     canActivate: [authGuard]
   }
 ];
