@@ -228,6 +228,32 @@
   }
 }
 
+.loading-more {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 0.9rem;
+  background-color: rgba(209, 236, 241, 0.5);
+  border-radius: 8px;
+  margin: 1rem 0;
+  
+  [data-theme="dark"] & {
+    background-color: rgba(26, 77, 92, 0.5);
+    color: #7dd3fc;
+  }
+
+  &::after {
+    content: '...';
+    animation: dots 1.5s infinite;
+  }
+
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+  }
+}
+
 .error {
   background-color: #f8d7da;
   color: #721c24;

@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, HostListener } from '@angular/core';
+import { Component, signal, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -57,7 +57,7 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
           </nav>
         </aside>
         <div class="content-wrapper">
-          <div class="main-content">
+          <div class="main-content" #scrollContainer (scroll)="onScroll()">
             <div class="drive-content">
               <!-- Loading -->
               <div *ngIf="loading()" class="loading">
@@ -95,12 +95,12 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
               <input type="file" multiple accept="image/*,video/*" (change)="onFileSelect($event)" #fileInput style="display: none;">
 
               <!-- Photos/Videos Grid -->
-              <div *ngIf="!loading() && photos().length > 0" class="photos-grid"
+              <div *ngIf="!loading() && displayedPhotos().length > 0" class="photos-grid"
                    (dragover)="onDragOver($event)"
                    (dragleave)="onDragLeave($event)"
                    (drop)="onDrop($event)"
                    [class.drag-over]="isDragOver()">
-              <div *ngFor="let photo of photos()"
+              <div *ngFor="let photo of displayedPhotos(); trackBy: trackByPhotoPath"
                    class="photo-tile"
                    [class.selected]="isFileSelected(photo.name)"
                    (click)="onPhotoTileClick(photo, $event)">
@@ -124,8 +124,13 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
                 </div>
               </div>
 
+              <!-- Loading More Indicator -->
+              <div *ngIf="loadingMore() && !loading()" class="loading-more">
+                Loading more photos
+              </div>
+
               <!-- Empty State -->
-              <div *ngIf="!loading() && photos().length === 0" class="empty-state"
+              <div *ngIf="!loading() && allPhotos().length === 0" class="empty-state"
                    (dragover)="onDragOver($event)"
                    (dragleave)="onDragLeave($event)"
                    (drop)="onDrop($event)"
@@ -337,9 +342,15 @@ export class PhotosComponent implements OnInit {
   currentUser = signal<User | null>(null);
   showUserDropdown = signal(false);
   storageUsage = signal<StorageUsage | null>(null);
-  photos = signal<FileItemDto[]>([]);
+  allPhotos = signal<FileItemDto[]>([]); // All photos from backend
+  displayedPhotos = signal<FileItemDto[]>([]); // Photos currently displayed
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
+  
+  // Display pagination (client-side)
+  displayCount = signal<number>(20); // Number of photos to display initially
+  displayIncrement = signal<number>(20); // Number of photos to add when scrolling
+  loadingMore = signal<boolean>(false);
   uploading = signal<boolean>(false);
   uploadProgress = signal<string>('');
   isDragOver = signal<boolean>(false);
@@ -457,7 +468,14 @@ export class PhotosComponent implements OnInit {
           const dateB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
           return dateB - dateA;
         });
-        this.photos.set(sortedFiles);
+        
+        // Store all photos
+        this.allPhotos.set(sortedFiles);
+        
+        // Display only first 20 photos (or less if total is less than 20)
+        const initialDisplayCount = Math.min(this.displayCount(), sortedFiles.length);
+        this.displayedPhotos.set(sortedFiles.slice(0, initialDisplayCount));
+        
         this.loading.set(false);
       },
       error: (err) => {
@@ -469,6 +487,51 @@ export class PhotosComponent implements OnInit {
         }
       }
     });
+  }
+
+  loadMorePhotos() {
+    if (this.loadingMore() || this.loading()) {
+      return;
+    }
+
+    const currentDisplayCount = this.displayedPhotos().length;
+    const totalPhotos = this.allPhotos().length;
+
+    // Check if all photos are already displayed
+    if (currentDisplayCount >= totalPhotos) {
+      console.log('All photos already displayed:', currentDisplayCount, '/', totalPhotos);
+      return;
+    }
+
+    console.log('Loading more photos. Current:', currentDisplayCount, 'Total:', totalPhotos);
+    this.loadingMore.set(true);
+    
+    // Simulate a small delay for better UX (optional)
+    setTimeout(() => {
+      const newDisplayCount = Math.min(
+        currentDisplayCount + this.displayIncrement(),
+        totalPhotos
+      );
+      
+      // Display more photos from the allPhotos array
+      this.displayedPhotos.set(this.allPhotos().slice(0, newDisplayCount));
+      this.loadingMore.set(false);
+      console.log('Loaded more photos. Now displaying:', newDisplayCount, 'of', totalPhotos);
+    }, 100);
+  }
+
+  onScroll() {
+    const scrollContainer = document.querySelector('.main-content') as HTMLElement;
+    if (!scrollContainer) return;
+
+    // Calculate if user has scrolled near the bottom of the container
+    const scrollPosition = scrollContainer.scrollTop + scrollContainer.clientHeight;
+    const scrollHeight = scrollContainer.scrollHeight;
+    const threshold = 300; // Load more when 300px from bottom
+
+    if (scrollPosition >= scrollHeight - threshold) {
+      this.loadMorePhotos();
+    }
   }
 
   triggerFileSelect() {
@@ -649,6 +712,10 @@ export class PhotosComponent implements OnInit {
     return imageExtensions.some(ext => lowerFileName.endsWith(ext));
   }
 
+  trackByPhotoPath(index: number, photo: FileItemDto): string {
+    return photo.path;
+  }
+
   getThumbnailUrl(photo: FileItemDto): string {
     // For now, return empty string. We'll need to fetch the download URL to display the image
     // This will be loaded asynchronously
@@ -673,8 +740,8 @@ export class PhotosComponent implements OnInit {
           .then(blob => {
             const url = URL.createObjectURL(blob);
             this.thumbnailCache.set(photo.name, url);
-            // Trigger change detection by updating the photos signal
-            this.photos.set([...this.photos()]);
+            // Trigger change detection by updating the displayedPhotos signal
+            this.displayedPhotos.set([...this.displayedPhotos()]);
           });
       },
       error: (err) => {
@@ -842,10 +909,10 @@ export class PhotosComponent implements OnInit {
     const currentFile = this.currentPreviewFile() || this.currentVideoPreviewFile();
     if (!currentFile) return;
 
-    const currentIndex = this.photos().findIndex(p => p.name === currentFile.name);
+    const currentIndex = this.allPhotos().findIndex(p => p.name === currentFile.name);
     if (currentIndex <= 0) return; // Already at the first file
 
-    const previousFile = this.photos()[currentIndex - 1];
+    const previousFile = this.allPhotos()[currentIndex - 1];
     this.previewFile(previousFile);
   }
 
@@ -856,10 +923,10 @@ export class PhotosComponent implements OnInit {
     const currentFile = this.currentPreviewFile() || this.currentVideoPreviewFile();
     if (!currentFile) return;
 
-    const currentIndex = this.photos().findIndex(p => p.name === currentFile.name);
-    if (currentIndex >= this.photos().length - 1) return; // Already at the last file
+    const currentIndex = this.allPhotos().findIndex(p => p.name === currentFile.name);
+    if (currentIndex >= this.allPhotos().length - 1) return; // Already at the last file
 
-    const nextFile = this.photos()[currentIndex + 1];
+    const nextFile = this.allPhotos()[currentIndex + 1];
     this.previewFile(nextFile);
   }
 
@@ -973,7 +1040,7 @@ export class PhotosComponent implements OnInit {
     // This ensures navigation reads the correct current file
     this.currentVideoPreviewFile.set(photo);
     this.previewVideoName.set(photo.name);
-    
+
     // Reset video preview state
     this.previewVideoUrl.set(null);
     this.videoLoading.set(true);
