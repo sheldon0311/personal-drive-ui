@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -34,7 +35,10 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private router: Router
+  ) {
     // Check if user is already logged in
     this.checkAuthStatus().subscribe({
       next: (response) => {
@@ -188,6 +192,25 @@ export class AuthService {
    */
   isAuthenticatedResponse(response: any): boolean {
     return response && response.success === true;
+  }
+
+  /**
+   * Health check endpoint to keep session active
+   * Should be called periodically (e.g., every 5 minutes) to prevent session timeout
+   */
+  healthCheck(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/api/auth/health`, {
+      withCredentials: true
+    }).pipe(
+      catchError((error) => {
+        // If 401, user is not authenticated
+        if (error.status === 401) {
+          this.setCurrentUser(null);
+          this.router.navigate(['/login']);
+        }
+        return of({ success: false });
+      })
+    );
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from './services/auth.service';
@@ -9,9 +9,11 @@ import { AuthService } from './services/auth.service';
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   protected readonly title = signal('personal-drive-ui');
   currentTheme = signal<string>('light');
+  private healthCheckInterval?: number;
+  private readonly HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   constructor(
     private router: Router,
@@ -28,6 +30,48 @@ export class App implements OnInit {
     ).subscribe(() => {
       this.updateTheme();
     });
+
+    // Start health check interval to keep session active
+    this.startHealthCheck();
+  }
+
+  ngOnDestroy() {
+    // Clean up the health check interval when component is destroyed
+    this.stopHealthCheck();
+  }
+
+  private startHealthCheck() {
+    // Call health check immediately if user is logged in
+    if (this.authService.isLoggedIn()) {
+      this.performHealthCheck();
+    }
+
+    // Set up periodic health check
+    this.healthCheckInterval = window.setInterval(() => {
+      if (this.authService.isLoggedIn()) {
+        this.performHealthCheck();
+      }
+    }, this.HEALTH_CHECK_INTERVAL);
+  }
+
+  private performHealthCheck() {
+    this.authService.healthCheck().subscribe({
+      next: (response) => {
+        if (!response.success) {
+          console.log('Health check failed, user may be logged out');
+        }
+      },
+      error: (err) => {
+        console.log('Health check error:', err);
+      }
+    });
+  }
+
+  private stopHealthCheck() {
+    if (this.healthCheckInterval) {
+      window.clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
   }
 
   private updateTheme() {
