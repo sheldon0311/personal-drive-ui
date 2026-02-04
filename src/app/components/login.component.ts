@@ -243,7 +243,8 @@ export class LoginComponent implements OnInit {
           console.log('User already authenticated, redirecting to drive...');
           this.authService.setCurrentUser({
             username: response.username || 'Unknown User',
-            email: response.email
+            email: response.email,
+            admin: response.admin
           });
           this.router.navigate(['/drive']);
         }
@@ -274,7 +275,8 @@ export class LoginComponent implements OnInit {
           console.log('Login successful, redirecting to drive...');
           this.authService.setCurrentUser({
             username: this.credentials.username,
-            email: response.email
+            email: response.email,
+            admin: response.admin
           });
           this.router.navigate(['/drive']);
         } else {

@@ -34,6 +34,7 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
             </button>
             <div *ngIf="showUserDropdown()" class="user-dropdown">
               <button (click)="openUpdateProfile()" class="dropdown-item">Update Profile</button>
+              <button *ngIf="currentUser()?.admin" (click)="openAssignBucketModal()" class="dropdown-item">Assign New Bucket</button>
               <button (click)="logout()" class="dropdown-item">Logout</button>
             </div>
           </div>
@@ -336,6 +337,64 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
           </form>
         </div>
       </div>
+
+      <!-- Assign New Bucket Modal (Admin Only) -->
+      <div *ngIf="showAssignBucketModal()" class="modal-overlay" (click)="cancelAssignBucket()">
+        <div class="modal-content assign-bucket-modal" (click)="$event.stopPropagation()">
+          <h3>Assign New Bucket</h3>
+          <form (ngSubmit)="assignBucket()" #assignBucketForm="ngForm">
+            <div class="form-group">
+              <label for="bucketName">Bucket Name</label>
+              <input
+                type="text"
+                id="bucketName"
+                name="bucketName"
+                [(ngModel)]="assignBucketData.bucketName"
+                placeholder="Enter bucket name"
+                class="form-input"
+                required
+                #bucketNameInput="ngModel">
+              <div *ngIf="bucketNameInput.invalid && bucketNameInput.touched" class="error-text">
+                Bucket name is required
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="assignUsername">Username</label>
+              <input
+                type="text"
+                id="assignUsername"
+                name="assignUsername"
+                [(ngModel)]="assignBucketData.username"
+                placeholder="Enter username"
+                class="form-input"
+                required
+                #assignUsernameInput="ngModel">
+              <div *ngIf="assignUsernameInput.invalid && assignUsernameInput.touched" class="error-text">
+                Username is required
+              </div>
+            </div>
+
+            <div *ngIf="assignBucketError()" class="error">
+              {{ assignBucketError() }}
+            </div>
+
+            <div *ngIf="assignBucketSuccess()" class="success">
+              {{ assignBucketSuccess() }}
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" (click)="cancelAssignBucket()" class="btn-cancel">Cancel</button>
+              <button
+                type="submit"
+                class="btn-confirm-update"
+                [disabled]="assignBucketLoading() || assignBucketForm.invalid">
+                {{ assignBucketLoading() ? 'Assigning...' : 'Assign Bucket' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   `
 })
@@ -364,6 +423,16 @@ export class PhotosComponent implements OnInit, OnDestroy {
   updateProfileLoading = signal<boolean>(false);
   updateProfileError = signal<string | null>(null);
   updateProfileSuccess = signal<string | null>(null);
+
+  // Admin - Assign Bucket Modal
+  showAssignBucketModal = signal<boolean>(false);
+  assignBucketData = {
+    bucketName: signal<string>(''),
+    username: signal<string>('')
+  };
+  assignBucketLoading = signal<boolean>(false);
+  assignBucketError = signal<string | null>(null);
+  assignBucketSuccess = signal<string | null>(null);
 
   // Image Preview Modal
   showImagePreview = signal<boolean>(false);
@@ -787,6 +856,53 @@ export class PhotosComponent implements OnInit, OnDestroy {
     this.updateProfileSuccess.set(null);
   }
 
+  openAssignBucketModal() {
+    this.showUserDropdown.set(false);
+    this.showAssignBucketModal.set(true);
+    this.assignBucketError.set(null);
+    this.assignBucketSuccess.set(null);
+    this.assignBucketData.bucketName.set('');
+    this.assignBucketData.username.set('');
+  }
+
+  cancelAssignBucket() {
+    this.showAssignBucketModal.set(false);
+    this.assignBucketData.bucketName.set('');
+    this.assignBucketData.username.set('');
+    this.assignBucketError.set(null);
+    this.assignBucketSuccess.set(null);
+  }
+
+  assignBucket() {
+    const bucketName = this.assignBucketData.bucketName().trim();
+    const username = this.assignBucketData.username().trim();
+
+    if (!bucketName || !username) {
+      this.assignBucketError.set('Both bucket name and username are required');
+      return;
+    }
+
+    this.assignBucketLoading.set(true);
+    this.assignBucketError.set(null);
+    this.assignBucketSuccess.set(null);
+
+    this.authService.assignNewBucket(bucketName, username).subscribe({
+      next: (response) => {
+        this.assignBucketLoading.set(false);
+        this.assignBucketSuccess.set(response.message || 'Bucket created and assigned successfully');
+        // Clear form after success
+        setTimeout(() => {
+          this.cancelAssignBucket();
+        }, 2000);
+      },
+      error: (err) => {
+        this.assignBucketLoading.set(false);
+        const errorMessage = err.error?.message || err.message || 'Failed to assign bucket';
+        this.assignBucketError.set(errorMessage);
+      }
+    });
+  }
+
   updateProfile() {
     const email = this.updateProfileData.email().trim();
     const currentPassword = this.updateProfileData.currentPassword().trim();
@@ -827,7 +943,8 @@ export class PhotosComponent implements OnInit, OnDestroy {
         if (response.email) {
           this.authService.setCurrentUser({
             username: response.username,
-            email: response.email
+            email: response.email,
+            admin: this.currentUser()?.admin
           });
           this.currentUser.set({
             username: response.username,

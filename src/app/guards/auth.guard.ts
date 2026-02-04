@@ -19,7 +19,8 @@ export const authGuard: CanActivateFn = (route, state) => {
         // Ensure current user is set
         authService.setCurrentUser({
           username: response.username || 'Unknown User',
-          email: response.email
+          email: response.email,
+          admin: response.admin
         });
         return true;
       } else {

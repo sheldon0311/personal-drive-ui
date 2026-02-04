@@ -8,6 +8,7 @@ import { environment } from '../../environments/environment';
 export interface User {
   username: string;
   email?: string;
+  admin?: boolean;
 }
 
 export interface LoginRequest {
@@ -45,7 +46,8 @@ export class AuthService {
         if (response.success) {
           this.setCurrentUser({
             username: response.username,
-            email: response.email
+            email: response.email,
+            admin: response.admin
           });
         }
       },
@@ -148,6 +150,27 @@ export class AuthService {
   }
 
   /**
+   * Assign a new bucket to a user (admin only)
+   */
+  assignNewBucket(bucketName: string, username: string): Observable<any> {
+    const csrfToken = this.getCsrfToken();
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+      headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
+    return this.http.post(`${this.apiUrl}/api/admin/assign-new-bucket`, 
+      { bucketName, username },
+      {
+        withCredentials: true,
+        headers
+      }
+    );
+  }
+
+  /**
    * Get current user value
    */
   get currentUserValue(): User | null {
@@ -171,7 +194,8 @@ export class AuthService {
           // Update user info if session is valid
           this.setCurrentUser({
             username: response.username,
-            email: response.email
+            email: response.email,
+            admin: response.admin
           });
           return true;
         } else {

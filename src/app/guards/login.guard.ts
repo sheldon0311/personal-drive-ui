@@ -20,7 +20,8 @@ export const loginGuard: CanActivateFn = () => {
         console.log('LoginGuard: User is authenticated, redirecting to drive');
         authService.setCurrentUser({
           username: response.username || 'Unknown User',
-          email: response.email
+          email: response.email,
+          admin: response.admin
         });
         router.navigate(['/drive']);
         return false; // Prevent access to login page
