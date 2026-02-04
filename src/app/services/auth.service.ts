@@ -161,7 +161,7 @@ export class AuthService {
       headers['X-XSRF-TOKEN'] = csrfToken;
     }
 
-    return this.http.post(`${this.apiUrl}/api/admin/assign-new-bucket`, 
+    return this.http.post(`${this.apiUrl}/api/admin/assign-new-bucket`,
       { bucketName, username },
       {
         withCredentials: true,

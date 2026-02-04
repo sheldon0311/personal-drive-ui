@@ -97,7 +97,7 @@ import { StorageUsage, FileItemDto } from '../models/drive.models';
               <input type="file" multiple accept="image/*,video/*" (change)="onFileSelect($event)" #fileInput style="display: none;">
 
               <!-- Photos/Videos Grid with Virtual Scroll -->
-              <cdk-virtual-scroll-viewport 
+              <cdk-virtual-scroll-viewport
                 *ngIf="!loading() && photoRows().length > 0"
                 [itemSize]="300"
                 class="photos-viewport"
@@ -405,7 +405,7 @@ export class PhotosComponent implements OnInit, OnDestroy {
   allPhotos = signal<FileItemDto[]>([]); // All photos from backend
   loading = signal<boolean>(false);
   error = signal<string | null>(null);
-  
+
   // Compute rows of photos for virtual scroll (each row contains multiple photos)
   private itemsPerRow = 5; // Approximate items per row based on 200px min-width
   photoRows = signal<FileItemDto[][]>([]);
@@ -568,14 +568,14 @@ export class PhotosComponent implements OnInit, OnDestroy {
 
         // Store all photos
         this.allPhotos.set(sortedFiles);
-        
+
         // Create rows for virtual scroll
         const rows: FileItemDto[][] = [];
         for (let i = 0; i < sortedFiles.length; i += this.itemsPerRow) {
           rows.push(sortedFiles.slice(i, i + this.itemsPerRow));
         }
         this.photoRows.set(rows);
-        
+
         this.loading.set(false);
       },
       error: (err) => {

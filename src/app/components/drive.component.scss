@@ -1107,15 +1107,15 @@ button {
 .photos-viewport {
   height: calc(100vh - 250px); // Adjust based on header/footer height
   width: 100%;
-  
+
   // Hide scrollbar while maintaining scroll functionality
   scrollbar-width: none; // Firefox
   -ms-overflow-style: none; // IE and Edge
-  
+
   &::-webkit-scrollbar {
     display: none; // Chrome, Safari, Opera
   }
-  
+
   &.drag-over {
     border: 2px dashed #007bff;
     background-color: #e3f2fd;
